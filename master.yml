@@ -1,0 +1,50 @@
+Description: >
+  This template deploys an AWS infrastructure.
+
+Resources:
+  VPC:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+        TemplateURL: "https://rafa-trambo-bucket.s3-us-west-2.amazonaws.com/CloudFormation/vpc.yml"
+        Parameters:
+            EnvironmentName:    !Ref AWS::StackName
+            VpcCIDR:            10.1.0.0/16
+            PublicSubnet1CIDR:  10.1.0.0/19
+            PublicSubnet2CIDR:  10.1.32.0/19
+            PublicSubnet3CIDR:  10.1.64.0/19
+            PrivateSubnet1CIDR: 10.1.128.0/19
+            PrivateSubnet2CIDR: 10.1.160.0/19
+            PrivateSubnet3CIDR: 10.1.192.0/19
+  
+  SecurityGroups:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: "https://rafa-trambo-bucket.s3-us-west-2.amazonaws.com/CloudFormation/securitygroups.yml"
+      Parameters:
+          EnvironmentName:    !Ref AWS::StackName
+          VPC: !GetAtt VPC.Outputs.VPC
+  
+  RDS:  
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: "https://rafa-trambo-bucket.s3-us-west-2.amazonaws.com/CloudFormation/rds.yml"
+      Parameters:
+          EnvironmentName:    !Ref AWS::StackName
+          DBName: rafaDB
+          DBUser: rafa1234
+          DBPassword: rafa1234
+          EC2SecurityGroup: !GetAtt SecurityGroups.Outputs.ECSG
+          PrivateSubnetsList: !GetAtt VPC.Outputs.PrivateSubnets
+          VPC: !GetAtt VPC.Outputs.VPC
+
+  EC2:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: "https://rafa-trambo-bucket.s3-us-west-2.amazonaws.com/CloudFormation/ec2.yml"
+      Parameters:
+          SubnetID: !GetAtt VPC.Outputs.PublicSubnet1
+          SecurityGroupID: !GetAtt SecurityGroups.Outputs.ECSG
+          DBName: rafaDB
+          DBUser: rafa1234
+          DBPassword: rafa1234
+          DBEndpoint: !GetAtt RDS.Outputs.Endpoint

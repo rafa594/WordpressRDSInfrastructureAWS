@@ -1,0 +1,117 @@
+Description: >
+  This template deploys an AWS infrastructure.
+
+Parameters:
+    SubnetID:
+        Description: SubnetID for Ec2Instance
+        Type: String
+
+    SecurityGroupID:
+        Description: SecurityGroupID for Ec2Instance
+        Type: String
+    
+    DBName:        
+        Description: The database name
+        Type: String                
+        
+    DBUser:
+        NoEcho: 'true'
+        Description: The database admin account username
+        Type: String        
+
+    DBPassword:
+        NoEcho: 'true'
+        Description: The database admin account password
+        Type: String
+    
+    DBEndpoint:
+        NoEcho: 'true'
+        Description: The database endpoint
+        Type: String
+
+Resources:
+    Ec2Instance: 
+        Type: AWS::EC2::Instance
+        Properties: 
+            ImageId: ami-0e8c04af2729ff1bb
+            KeyName: "rafa-kp"
+            InstanceType: t2.micro
+            NetworkInterfaces: 
+                - AssociatePublicIpAddress: "true"
+                  DeviceIndex: "0"
+                  GroupSet: 
+                    - !Ref SecurityGroupID
+                  SubnetId: !Ref SubnetID
+            
+            
+            UserData:
+                Fn::Base64: !Sub |
+                    #!/bin/bash
+                    yum -y update
+                    amazon-linux-extras install php7.2
+                    yum install httpd aws-cli -y
+                    cd /var/www/html
+                    wget -O wordpress.tar.gz http://wordpress.org/latest.tar.gz
+                    tar -xzf wordpress.tar.gz
+                    cp -r wordpress/* /var/www/html/
+                    rm -rf wordpress
+                    rm -rf wordpress.tar.gz
+                    chmod -R 755 wp-content
+                    chown -R apache:apache wp-content
+                    service httpd start
+                    chkconfig httpd on
+                    rm -rf wp-config.php
+                    echo "<?php
+                    /**
+                     * Custom WordPress configurations on "wp-config.php" file.
+                     *
+                     * This file has the following configurations: MySQL settings, Table Prefix, Secret Keys, WordPress Language, ABSPATH and more.
+                     * For more information visit {@link https://codex.wordpress.org/Editing_wp-config.php Editing wp-config.php} Codex page.
+                     * Created using {@link http://generatewp.com/wp-config/ wp-config.php File Generator} on GenerateWP.com.
+                     *
+                     * @package WordPress
+                     * @generator GenerateWP.com
+                     */
+                    
+                    
+                    /* MySQL settings */
+                    define( 'DB_NAME',     '${DBName}' );
+                    define( 'DB_USER',     '${DBUser}' );
+                    define( 'DB_PASSWORD', '${DBPassword}' );
+                    define( 'DB_HOST',     '${DBEndpoint}' );
+                    define( 'DB_CHARSET',  'utf8mb4' );
+                    
+                    
+                    /* MySQL database table prefix. */
+                    \$table_prefix = 'wp_';
+                    
+                    
+                    /* Authentication Unique Keys and Salts. */
+                    /* https://api.wordpress.org/secret-key/1.1/salt/ */
+                    define('AUTH_KEY',         'X0jVAm-rvV%g5;c{l`zu;67Q/{Xm;oUYAyuoUd2Irqlj>1|qa]r`+PKV&b_z)L_k');
+                    define('SECURE_AUTH_KEY',  'ULg2 rBBwAxrg*q%y:w|y/j(-I|wywBak>6rR#:(gT.`7.Vux;K],T7$*Y-<t?97');
+                    define('LOGGED_IN_KEY',    '.C+MuiTO]1_UwBx*Fi86!4Pr&bXi&MC@Qhv]@]>jo!q;fw)`2o82b./AfEhrRn){');
+                    define('NONCE_KEY',        'W7.(7b63$y=L}+tP-0b-`Eut$X^-#]q4`9_/D(a41_vNufCoF]esCL^.|J^%5_W8');
+                    define('AUTH_SALT',        'L1)G)$yq;!_Ie-xOHmi2Z{/qa2EaX$$PG$ruwMt|h{-16|Q}]E1Xv3M yC3&Z0Qy');
+                    define('SECURE_AUTH_SALT', '->JHXkLo=xyJ-WTW>Vt5c#|DK5]S-#:0IvlbB5H|U@nP*,2cw.}xZv&g/1!M`!2:');
+                    define('LOGGED_IN_SALT',   'E|B/ (%c*0#df9$m(k^{d1X5MnyxOJlV{KJAV2sX!QTVt >O(5sYCPJ VDM|Y#1<');
+                    define('NONCE_SALT',       'LK+W%9vRs]xGVuv#Ek`(]R-|6<X&gG<De{A?)^:,b6IqP}UTf1[u2O#+Mh@O1j,&');
+                    
+                    
+                    /* Absolute path to the WordPress directory. */
+                    if ( !defined('ABSPATH') )
+                        define('ABSPATH', dirname(__FILE__) . '/');
+                    
+                    /* Sets up WordPress vars and included files. */
+                    require_once(ABSPATH . 'wp-settings.php');
+                    ?>" > wp-config.php
+                    curl http://169.254.169.254/latest/meta-data/public-hostname >hostname.txt
+                    public_dns=$(cat hostname.txt)
+
+
+                    curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+                    php wp-cli.phar core install --url=$public_dns --title="Rafa's First Blog" --admin_name=rafa1234 --admin_password=rafa1234 --admin_email=you@example.com
+
+                    
+
+            

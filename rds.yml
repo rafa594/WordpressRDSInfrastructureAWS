@@ -1,0 +1,90 @@
+Description: RDS template
+
+Parameters:
+    EnvironmentName:
+        Description: An environment name that will be prefixed to resource names
+        Type: String
+    
+    EngineType:
+        Description: Name of the Engine of the DB.
+        Type: String
+        Default: 'mysql'
+
+    EngineVer:
+        Description: Version of the Engine of the DB.
+        Type: String
+        Default: '5.7.22'
+
+    DBInstanceClass:
+        Description: The DB instance type
+        Type: String
+        Default: 'db.t2.micro'
+
+    DBAllocatedStorage:
+        Default: '5'
+        Description: The size of the DB (Gb)
+        Type: Number
+        
+        
+    DBName:
+        Default: rafaDB
+        Description: The database name
+        Type: String                
+        
+    DBUser:
+        NoEcho: 'true'
+        Description: The database admin account username
+        Type: String        
+
+    DBPassword:
+        NoEcho: 'true'
+        Description: The database admin account password
+        Type: String
+    
+    EC2SecurityGroup:                
+        Type: String
+
+    PrivateSubnetsList:
+        Type: CommaDelimitedList
+    
+    VPC:
+        Description: The VPC id create for project's infrastructure
+        Type: AWS::EC2::VPC::Id
+    
+    
+Resources:
+    DBSubnetGroup:
+      Type: AWS::RDS::DBSubnetGroup      
+      Properties:
+        DBSubnetGroupDescription: 'DB subnet group for DB instance'
+        DBSubnetGroupName: !Sub ${EnvironmentName} RDS-DBSubnetGroup
+        SubnetIds: !Ref PrivateSubnetsList
+
+    DBEC2SecurityGroup:
+        Type: AWS::EC2::SecurityGroup          
+        Properties: 
+            GroupDescription: Open database for access
+            VpcId: !Ref VPC
+            SecurityGroupIngress:
+            -   IpProtocol: tcp
+                FromPort: '3306'
+                ToPort: '3306'
+                SourceSecurityGroupId: !Ref EC2SecurityGroup
+    
+    MasterDB:
+        Type: AWS::RDS::DBInstance
+        Properties:
+            DBName: !Ref DBName
+            AllocatedStorage: !Ref DBAllocatedStorage
+            DBInstanceClass: !Ref DBInstanceClass
+            Engine: !Ref EngineType
+            EngineVersion: !Ref EngineVer
+            MasterUsername: !Ref DBUser
+            MasterUserPassword: !Ref DBPassword
+            DBSubnetGroupName: !Sub ${EnvironmentName} RDS-DBSubnetGroup
+            VPCSecurityGroups: [!GetAtt [DBEC2SecurityGroup, GroupId]]        
+
+Outputs:
+    Endpoint:
+            Description: Endpoint Address for the RDS instance
+            Value: !GetAtt MasterDB.Endpoint.Address
